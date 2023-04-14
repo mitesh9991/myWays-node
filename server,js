@@ -1,0 +1,176 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+
+const app = express();
+
+// Body parser middleware
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+// MongoDB connection
+mongoose.connect('mongodb://localhost/food-db')
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.log(err));
+
+// Food model
+const Food = mongoose.model('Food', {
+  foodName: String,
+  foodType: { type: String, enum: ['delicious food', 'nutritious food', 'fast food', 'beverages', 'dessert'] },
+  maxDeliveryTime: Number,
+  price: Number
+});
+
+// Food order model
+const Order = mongoose.model('Order', {
+  foodId: { type: mongoose.Schema.Types.ObjectId, ref: 'Food' },
+  status: { type: String, enum: ['Placed', 'Out for Delivery', 'Delivered', 'Cancelled'] }
+});
+
+// GET /food
+app.get('/food', async (req, res) => {
+  try {
+    const foods = await Food.find();
+    res.json(foods);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// GET /food?type=fast-food
+app.get('/food', async (req, res) => {
+  const { type, maxdeliverytime } = req.query;
+  try {
+    const foods = await Food.find({ foodType: type, maxDeliveryTime: { $lte: maxdeliverytime } });
+    res.json(foods);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// GET /food/:id
+app.get('/food/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const food = await Food.findById(id);
+    if (!food) {
+      return res.status(404).json({ msg: 'Food not found' });
+    }
+    res.json(food);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// POST /food
+app.post('/food', async (req, res) => {
+  const { foodName, foodType, maxDeliveryTime, price } = req.body;
+  try {
+    const food = new Food({ foodName, foodType, maxDeliveryTime, price });
+    await food.save();
+    res.json(food);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Method: GET /food?type=fast-food
+app.get('/food', (req, res) => {
+   const type = req.query.type;
+   if (type) {
+     const filteredItems = foodItems.filter(item => item.type === type);
+     res.send(filteredItems);
+   } else {
+     res.send(foodItems);
+   }
+ });
+ 
+ // Method: GET /food/:id
+ app.get('/food/:id', (req, res) => {
+   const id = parseInt(req.params.id);
+   const foodItem = foodItems.find(item => item.id === id);
+   if (foodItem) {
+     res.send(foodItem);
+   } else {
+     res.status(404).send('Food item not found');
+   }
+ });
+ 
+ // API: Post Food
+ app.post('/food', (req, res) => {
+   const newFoodItem = req.body;
+   const id = foodItems.length + 1;
+   newFoodItem.id = id;
+   foodItems.push(newFoodItem);
+   res.send(newFoodItem);
+ });
+ 
+ // API: Update Food
+ app.put('/food/:id', (req, res) => {
+   const id = parseInt(req.params.id);
+   const updatedFoodItem = req.body;
+   const index = foodItems.findIndex(item => item.id === id);
+   if (index !== -1) {
+     foodItems[index] = { id, ...updatedFoodItem };
+     res.send(foodItems[index]);
+   } else {
+     res.status(404).send('Food item not found');
+   }
+ });
+ 
+ // API: Delete Food
+ app.delete('/food/:id', (req, res) => {
+   const id = parseInt(req.params.id);
+   const index = foodItems.findIndex(item => item.id === id);
+   if (index !== -1) {
+     foodItems.splice(index, 1);
+     res.send('Food item deleted');
+   } else {
+     res.status(404).send('Food item not found');
+   }
+ });
+ 
+ // API: Post Order
+ app.post('/food/order', (req, res) => {
+   const newOrder = req.body;
+   const id = orders.length + 1;
+   newOrder.id = id;
+   newOrder.status = 'Placed';
+   orders.push(newOrder);
+   res.send(newOrder);
+ });
+ 
+ // API: Update Order
+ app.put('/food/order/:id', (req, res) => {
+   const id = parseInt(req.params.id);
+   const status = req.body.status;
+   const index = orders.findIndex(order => order.id === id);
+   if (index !== -1) {
+     orders[index].status = status;
+     res.send(orders[index]);
+   } else {
+     res.status(404).send('Order not found');
+   }
+ });
+ 
+ app.get('/food/orders', (req, res) => {
+  const status = req.query.status;
+  if (!status) {
+    return res.status(400).json({ error: 'Missing status parameter' });
+  }
+
+  
+  Order.find({ status: status }, (err, orders) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(orders);
+  });
+});
+
+// start the server
+app.listen(3000, () => console.log('Server listening on port 3000'));
